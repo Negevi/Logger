@@ -1,3 +1,6 @@
+use std::path::Path;
+
+const PATH: &str = "D:/Rust/files/";
 pub struct Log<'a> {
     name: &'a str,
     date: chrono::NaiveDate,
@@ -7,7 +10,11 @@ pub struct Log<'a> {
 }
 
 impl<'a> Log<'_> {
-    pub fn create_log() {}
+    pub fn log() {
+        let name = get_input("Log name: ");
+        let path = Path::new(PATH).join(name);
+        println!("{:?}", path.to_str());
+    }
 }
 
 struct Settings {
@@ -15,11 +22,10 @@ struct Settings {
     level: Level,
     write: bool,
     terminal: bool,
+    // color
 }
 impl Settings {
-    fn settings(name: &str) {
-        if name.ends_with(name) {}
-    }
+    fn settings() {}
 }
 pub enum Level {
     Info,
@@ -30,14 +36,14 @@ pub enum Level {
 enum Error {
     InvalidType,
 }
-pub fn get_input(q: &str) -> String {
-    let mut input = String::new();
+fn get_input(q: &str) -> &str {
     println!("{q}");
-    match std::io::stdin().read_line(&mut input) {
-        Ok(_) => input.trim().to_string(),
-        Err(_) => get_input(q),
-    }
-}
+    let mut input = String::new();
+    std::io::stdin()
+        .read_line(&mut input)
+        .expect("Failed to read input");
+    Box::leak(input.trim().to_string().into_boxed_str())
+} //chat gpt lmao, no idea what Box does
 
 // let date = chrono::Local::now().date_naive();
 // this returns the system's local date.
