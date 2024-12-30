@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::fs::{self, DirBuilder, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+
 const PATH: &str = "D:/Rust/logs/";
 pub struct Log<'a> {
     name: &'a str,
@@ -18,37 +19,38 @@ impl<'a> Log<'_> {
         match fs::create_dir(path.clone()) {
             Ok(_) => {
                 println!("Log created at path {:?}", path.to_str());
-                Settings::new_settings(path);
+                let settings = Settings::settings(path);
+                let json_string = serde_json::to_string_pretty(&settings).unwrap();
+                let json_path = Path::new(&settings.path).join("settings");
+                let mut file = File::create(json_path).expect("Error creating file");
+                file.write_all(json_string.as_bytes())
+                    .expect("Error writing string to json.");
             }
             Err(_) => println!("That Log already exists. Please try gain"),
         }
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct Settings {
-    file: PathBuf,
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Settings {
+    path: PathBuf,
     level: Level,
-    write: bool,
     terminal: bool,
     // color
 }
 impl Settings {
-    fn new_settings(path: PathBuf) {
-        let default = Settings {
-            file: path.clone(),
+    pub fn settings(path: PathBuf) -> Settings {
+        let config = Settings {
+            path: path,
             level: Level::Info,
-            write: false,
             terminal: false,
         };
-        let json_string = serde_json::to_string_pretty(&default).unwrap();
-        let json_path = Path::new(&path).join("settings");
-        let mut file = File::create(json_path).expect("Error creating file");
-        file.write_all(json_string.as_bytes())
-            .expect("Error writing string to json.");
+        println!("{:?}", config); // debug
+        return config;
     }
 }
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
+
 pub enum Level {
     Info,
     Debug,
@@ -62,7 +64,3 @@ enum Error {
 // let date = chrono::Local::now().date_naive();
 // this returns the system's local date.
 // DateTime<Local> parsed to YYYY-MM-DD
-
-// "files" path: D:\Rust\files
-
-// Msg and Level -> input
