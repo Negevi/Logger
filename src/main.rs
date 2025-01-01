@@ -1,4 +1,7 @@
+use log::Log;
+
 mod log;
 fn main() {
-    log::Log::new_log("log1");
+    let log = log::Log::setup("log1").unwrap();
+    log.info("bro");
 }
