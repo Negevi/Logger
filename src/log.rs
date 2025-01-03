@@ -37,7 +37,7 @@ impl<'a> Content<'a> {
         );
     }
     fn print_content(self, settings: &Settings) {
-        print!("Log: {} ", settings.name);
+        print!("{}: ", settings.name);
         print!("[{}] ", self.date);
         print!("{} ", self.origin);
     }

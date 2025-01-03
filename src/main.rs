@@ -1,8 +1,11 @@
 mod log;
 mod origin2;
 fn main() {
-    let log1 = log::Log::setup("Logger 1");
-    log1.info("This is a log info msg");
-    log1.info("This is a log info msg2");
-    // origin2::test();
+    let log = log::Log::setup("Math");
+    log.info("This is an info msg.");
+    log.debug("This is an debug msg.");
+    log.warning("This is an warning msg.");
+    log.error("This is an error msg.");
+
+    log::Log::setup("log2");
 }
