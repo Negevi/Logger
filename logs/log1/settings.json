@@ -1,7 +1,0 @@
-{
-  "name": "log1",
-  "path": "D:/Rust/logs/log1",
-  "terminal": true,
-  "color": null,
-  "fmt": "%Y-%m-%d %H:%M:%S"
-}
