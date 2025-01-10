@@ -1,6 +1,6 @@
 Change logger settings on the respective .json file
 
-Available colors:  (31-37, 90-97)
+Available colors:
 "red"
 "green"
 "yellow"
@@ -8,19 +8,18 @@ Available colors:  (31-37, 90-97)
 "magenta"
 "cyan"
 
-\x1b[31m \x1b[37m CORES NORMAIS
-(37 = branco)
-
 # Todo
-Remove "Colored" lib []
-Color on all the log, not only msg []
-Show diferent color options on an .expect() []
+Remove "Colored" lib [X]
+Color on all the log, not only msg [X]
+Show diferent color options on an .expect() [X]
+
 Variable path []
 
 Finish origin []
 Fmt do Log em si []
 
 Better error handling []
+Better lifetime handling []
 
 Optional .json config, setup directly on main [] 
 Example: setup().color(true).terminal(true)...

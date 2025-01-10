@@ -76,8 +76,8 @@ pub struct Log<'a> {
     content: Option<Content<'a>>, // content mutavel, Option caso o log não tenha nada para logar. Achei meio esquisito, mas foi a solução q achei
 }
 impl<'a> Log<'_> {
-    pub fn setup(name: &str) -> Log {
-        let path = Path::new(PATH).join(name);
+    pub fn setup(name: &'a str, path: &str) -> Log<'a> {
+        let path = Path::new(path).join(name);
         match fs::create_dir(&path) {
             Ok(_) => {
                 create_files(path, name); // creates .txt, .json and folder for each logger
