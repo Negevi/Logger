@@ -1,5 +1,4 @@
 use chrono::Local;
-use colored::{ColoredString, Colorize};
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -36,10 +35,39 @@ impl<'a> Content<'a> {
             self.date, level, self.origin, self.msg
         );
     }
-    fn print_content(self, settings: &Settings) {
-        print!("{}: ", settings.name);
-        print!("[{}] ", self.date);
-        print!("{} ", self.origin);
+    fn print_log(self, settings: &Settings, level: &str, msg: &str) {
+        let mut level_color = ""; // <--- kinda ugly, but don't know how to do this without doing THIS.
+        match level {
+            "INFO" => level_color = "\x1b[36m",
+            "DEBUG" => level_color = "\x1b[32m",
+            "WARNING" => level_color = "\x1b[33m",
+            "ERROR" => level_color = "\x1b[31m",
+            _ => level_color = "\x1b[0m",
+        }
+        match settings.color {
+            None => print!(
+                "{}: [{}]  {} {level_color} [ {} ] \x1b[0m {}\n",
+                settings.name, self.date, self.origin, level, msg
+            ),
+            Some(mut color) => {
+                match color {
+                    "red" => color = "\x1b[31m",
+                    "green" => color = "\x1b[32m",
+                    "yellow" => color = "\x1b[33m",
+                    "blue" => color = "\x1b[34m",
+                    "magenta" => color = "\x1b[35m",
+                    "cyan" => color = "\x1b[36m",
+                    _ => {
+                        color = "\x1b[37m";
+                        println!("Color variable is invalid. Please check for any typing mishaps in the .json file.\nAvailable colors: red, green, yellow, blue, magenta, cyan\nFor none, please use the keyword null.\n")
+                    }
+                }
+                print!(
+                    "{color} {}: [{}] {} {level_color} [ {} ] \x1b[0m {color} {} \x1b[0m \n",
+                    settings.name, self.date, self.origin, level, msg
+                );
+            }
+        }
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -85,9 +113,7 @@ impl<'a> Log<'_> {
                     .write_all(Content::to_string(&content).as_bytes())
                     .expect("Error writing content to .txt file.");
                 if settings.terminal {
-                    Content::print_content(content, &settings);
-                    print!("{} ", "INFO".blue());
-                    println!("Message: {}\n", color(settings.color, msg));
+                    Content::print_log(content, &settings, "INFO", msg);
                 }
             }
             Err(_) => println!("Error opening settings file."),
@@ -110,9 +136,7 @@ impl<'a> Log<'_> {
                     .write_all(Content::to_string(&content).as_bytes())
                     .expect("Error writing content to .txt file.");
                 if settings.terminal {
-                    Content::print_content(content, &settings);
-                    print!("{} ", "DEBUG".green());
-                    println!("Message: {}\n", color(settings.color, msg));
+                    Content::print_log(content, &settings, "DEBUG", msg);
                 }
             }
             Err(_) => println!("Error opening settings file."),
@@ -135,9 +159,7 @@ impl<'a> Log<'_> {
                     .write_all(Content::to_string(&content).as_bytes())
                     .expect("Error writing content to .txt file.");
                 if settings.terminal {
-                    Content::print_content(content, &settings);
-                    print!("{} ", "WARNING".yellow());
-                    println!("Message: {}\n", color(settings.color, msg));
+                    Content::print_log(content, &settings, "WARNING", msg);
                 }
             }
             Err(_) => println!("Error opening settings file."),
@@ -160,9 +182,7 @@ impl<'a> Log<'_> {
                     .write_all(Content::to_string(&content).as_bytes())
                     .expect("Error writing content to .txt file.");
                 if settings.terminal {
-                    Content::print_content(content, &settings);
-                    print!("{} ", "ERROR".red());
-                    println!("Message: {}\n", color(settings.color, msg));
+                    Content::print_log(content, &settings, "ERROR", msg);
                 }
             }
             Err(_) => println!("Error opening settings file."),
@@ -215,20 +235,4 @@ fn create_files(path: PathBuf, name: &str) {
 fn local_date_string(fmt: &str) -> String {
     let datetime = Local::now();
     return datetime.format(fmt).to_string();
-}
-fn color<'a>(color: Option<&str>, colored: &str) -> ColoredString {
-    match color {
-        Some(color) => match color {
-            "black" => return colored.black(),
-            "red" => return colored.red(),
-            "green" => return colored.green(),
-            "yellow" => return colored.yellow(),
-            "blue" => return colored.blue(),
-            "magenta" => return colored.magenta(),
-            "cyan" => return colored.cyan(),
-            "white" => return colored.white(),
-            _ => return colored.normal(),
-        },
-        None => return colored.normal(),
-    }
 }
