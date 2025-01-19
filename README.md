@@ -12,11 +12,10 @@ Available colors:
 Remove "Colored" lib [X]
 Color on all the log, not only msg [X]
 Show diferent color options on an .expect() [X]
+Variable path [X]
 
-Variable path []
-
-Finish origin []
 Fmt do Log em si []
+Finish origin []
 
 Better error handling []
 Better lifetime handling []

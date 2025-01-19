@@ -4,8 +4,6 @@ use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-const PATH: &str = "D:/Rust/logs/";
-
 #[derive(Serialize, Deserialize, Debug)]
 struct Content<'a> {
     date: String,
@@ -73,16 +71,19 @@ impl<'a> Content<'a> {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Log<'a> {
     name: &'a str,
+    path: &'a str,
     content: Option<Content<'a>>, // content mutavel, Option caso o log não tenha nada para logar. Achei meio esquisito, mas foi a solução q achei
 }
 impl<'a> Log<'_> {
-    pub fn setup(name: &'a str, path: &str) -> Log<'a> {
-        let path = Path::new(path).join(name);
-        match fs::create_dir(&path) {
+    pub fn setup(name: &'a str, path: &'a str) -> Log<'a> {
+        let pathbuf = Path::new(path).join(name);
+        match fs::create_dir(&pathbuf) {
             Ok(_) => {
-                create_files(path, name); // creates .txt, .json and folder for each logger
+                create_files(pathbuf, name); // creates .txt, .json and folder for each logger (clone fn for debug, remove later)
+                println!("Log files created at {}", path); // Debug
                 let log = Log {
                     name: name,
+                    path: path,
                     content: None,
                 };
                 return log;
@@ -90,6 +91,7 @@ impl<'a> Log<'_> {
             Err(_) => {
                 let log = Log {
                     name: name,
+                    path: path,
                     content: None,
                 };
                 return log;
@@ -97,8 +99,8 @@ impl<'a> Log<'_> {
         }
     }
     pub fn info(&self, msg: &str) {
-        let settings_path = Path::new(PATH).join(self.name).join("settings.json");
-        let txt_path = Path::new(PATH).join(self.name).join("logs.txt");
+        let settings_path = Path::new(self.path).join(self.name).join("settings.json");
+        let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
         let settings =
             fs::read_to_string(settings_path).expect("Error reading .json settings file.");
         match serde_json::from_str::<Settings>(&settings) {
@@ -120,8 +122,8 @@ impl<'a> Log<'_> {
         }
     }
     pub fn debug(&self, msg: &str) {
-        let settings_path = Path::new(PATH).join(self.name).join("settings.json");
-        let txt_path = Path::new(PATH).join(self.name).join("logs.txt");
+        let settings_path = Path::new(self.path).join(self.name).join("settings.json");
+        let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
         let settings =
             fs::read_to_string(settings_path).expect("Error reading .json settings file.");
         match serde_json::from_str::<Settings>(&settings) {
@@ -143,8 +145,8 @@ impl<'a> Log<'_> {
         }
     }
     pub fn warning(&self, msg: &str) {
-        let settings_path = Path::new(PATH).join(self.name).join("settings.json");
-        let txt_path = Path::new(PATH).join(self.name).join("logs.txt");
+        let settings_path = Path::new(self.path).join(self.name).join("settings.json");
+        let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
         let settings =
             fs::read_to_string(settings_path).expect("Error reading .json settings file.");
         match serde_json::from_str::<Settings>(&settings) {
@@ -166,8 +168,8 @@ impl<'a> Log<'_> {
         }
     }
     pub fn error(&self, msg: &str) {
-        let settings_path = Path::new(PATH).join(self.name).join("settings.json");
-        let txt_path = Path::new(PATH).join(self.name).join("logs.txt");
+        let settings_path = Path::new(self.path).join(self.name).join("settings.json");
+        let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
         let settings =
             fs::read_to_string(settings_path).expect("Error reading .json settings file.");
         match serde_json::from_str::<Settings>(&settings) {
@@ -222,7 +224,6 @@ pub enum Error {
     InvalidLog,
 }
 fn create_files(path: PathBuf, name: &str) {
-    println!("Log created at path {}\n", path.to_str().unwrap());
     let settings = Settings::settings(path, name);
     let json_string = serde_json::to_string_pretty(&settings).unwrap();
     let json_path = Path::new(&settings.path).join("settings.json");
