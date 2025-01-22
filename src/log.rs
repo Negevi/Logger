@@ -1,5 +1,6 @@
 use chrono::Local;
 use serde::{Deserialize, Serialize};
+use std::backtrace::Backtrace;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -7,12 +8,12 @@ use std::path::{Path, PathBuf};
 #[derive(Serialize, Deserialize, Debug)]
 struct Content<'a> {
     date: String,
-    origin: &'a str,
+    origin: String,
     level: Level,
     msg: &'a str,
 }
 impl<'a> Content<'a> {
-    fn content(level: Level, msg: &'a str, origin: &'a str, fmt: &str) -> Content<'a> {
+    fn content(level: Level, msg: &'a str, origin: String, fmt: &str) -> Content<'a> {
         let content = Content {
             date: local_date_string(fmt),
             level: level,
@@ -105,7 +106,13 @@ impl<'a> Log<'_> {
             fs::read_to_string(settings_path).expect("Error reading .json settings file.");
         match serde_json::from_str::<Settings>(&settings) {
             Ok(settings) => {
-                let content = Content::content(Level::Info, msg, "origin", settings.fmt);
+                let bt = Backtrace::force_capture().to_string();
+                let content = Content::content(
+                    Level::Info,
+                    msg,
+                    parse_bt(bt).unwrap().trim().to_string(),
+                    settings.datefmt,
+                );
                 let mut txt_file = OpenOptions::new()
                     .write(true)
                     .append(true)
@@ -128,7 +135,8 @@ impl<'a> Log<'_> {
             fs::read_to_string(settings_path).expect("Error reading .json settings file.");
         match serde_json::from_str::<Settings>(&settings) {
             Ok(settings) => {
-                let content = Content::content(Level::Debug, msg, "origin", settings.fmt);
+                let bt = Backtrace::capture().to_string();
+                let content = Content::content(Level::Debug, msg, bt, settings.datefmt);
                 let mut txt_file = OpenOptions::new()
                     .write(true)
                     .append(true)
@@ -151,7 +159,8 @@ impl<'a> Log<'_> {
             fs::read_to_string(settings_path).expect("Error reading .json settings file.");
         match serde_json::from_str::<Settings>(&settings) {
             Ok(settings) => {
-                let content = Content::content(Level::Warning, msg, "origin", settings.fmt);
+                let bt = Backtrace::capture().to_string();
+                let content = Content::content(Level::Warning, msg, bt, settings.datefmt);
                 let mut txt_file = OpenOptions::new()
                     .write(true)
                     .append(true)
@@ -174,7 +183,8 @@ impl<'a> Log<'_> {
             fs::read_to_string(settings_path).expect("Error reading .json settings file.");
         match serde_json::from_str::<Settings>(&settings) {
             Ok(settings) => {
-                let content = Content::content(Level::Error, msg, "origin", settings.fmt);
+                let bt = Backtrace::capture().to_string();
+                let content = Content::content(Level::Error, msg, bt, settings.datefmt);
                 let mut txt_file = OpenOptions::new()
                     .write(true)
                     .append(true)
@@ -197,7 +207,7 @@ pub struct Settings<'a> {
     path: PathBuf,
     terminal: bool,
     color: Option<&'a str>,
-    fmt: &'a str,
+    datefmt: &'a str,
 }
 impl<'a> Settings<'a> {
     pub fn settings(path: PathBuf, name: &str) -> Settings {
@@ -206,7 +216,7 @@ impl<'a> Settings<'a> {
             path: path,
             terminal: true,
             color: None,
-            fmt: "%d-%m-%Y %H:%M:%S",
+            datefmt: "%d-%m-%Y %H:%M:%S",
         };
         return config;
     }
@@ -222,6 +232,7 @@ pub enum Level {
 pub enum Error {
     InvalidType,
     InvalidLog,
+    InvalidOrigin,
 }
 fn create_files(path: PathBuf, name: &str) {
     let settings = Settings::settings(path, name);
@@ -237,3 +248,15 @@ fn local_date_string(fmt: &str) -> String {
     let datetime = Local::now();
     return datetime.format(fmt).to_string();
 }
+fn parse_bt(bt: String) -> Option<String> {
+    let mut lines = bt.lines();
+    while let Some(line) = lines.next() {
+        if line.contains("log.rs") {
+            let _blank = lines.next();
+            let origin = lines.next().unwrap().trim();
+            return Some(String::from(origin));
+        }
+    }
+    None
+}
+// No error handling, dont know if it even works ;...(
