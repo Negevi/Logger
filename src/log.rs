@@ -35,14 +35,13 @@ impl<'a> Content<'a> {
         );
     }
     fn print_log(self, settings: &Settings, level: &str, msg: &str) {
-        let mut level_color = ""; // <--- kinda ugly, but don't know how to do this without doing THIS.
-        match level {
-            "INFO" => level_color = "\x1b[36m",
-            "DEBUG" => level_color = "\x1b[32m",
-            "WARNING" => level_color = "\x1b[33m",
-            "ERROR" => level_color = "\x1b[31m",
-            _ => level_color = "\x1b[0m",
-        }
+        let level_color = match level {
+            "INFO" => "\x1b[36m",
+            "DEBUG" => "\x1b[32m",
+            "WARNING" => "\x1b[33m",
+            "ERROR" => "\x1b[31m",
+            _ => "\x1b[0m",
+        };
         match settings.color {
             None => print!(
                 "{}: [{}]  {} {level_color} [ {} ] \x1b[0m {}\n",
@@ -107,12 +106,8 @@ impl<'a> Log<'_> {
         match serde_json::from_str::<Settings>(&settings) {
             Ok(settings) => {
                 let bt = Backtrace::force_capture().to_string();
-                let content = Content::content(
-                    Level::Info,
-                    msg,
-                    parse_bt(bt).unwrap().trim().to_string(),
-                    settings.datefmt,
-                );
+                let content =
+                    Content::content(Level::Info, msg, parse_bt(bt).unwrap(), settings.datefmt);
                 let mut txt_file = OpenOptions::new()
                     .write(true)
                     .append(true)
@@ -135,8 +130,9 @@ impl<'a> Log<'_> {
             fs::read_to_string(settings_path).expect("Error reading .json settings file.");
         match serde_json::from_str::<Settings>(&settings) {
             Ok(settings) => {
-                let bt = Backtrace::capture().to_string();
-                let content = Content::content(Level::Debug, msg, bt, settings.datefmt);
+                let bt = Backtrace::force_capture().to_string();
+                let content =
+                    Content::content(Level::Debug, msg, parse_bt(bt).unwrap(), settings.datefmt);
                 let mut txt_file = OpenOptions::new()
                     .write(true)
                     .append(true)
@@ -159,8 +155,9 @@ impl<'a> Log<'_> {
             fs::read_to_string(settings_path).expect("Error reading .json settings file.");
         match serde_json::from_str::<Settings>(&settings) {
             Ok(settings) => {
-                let bt = Backtrace::capture().to_string();
-                let content = Content::content(Level::Warning, msg, bt, settings.datefmt);
+                let bt = Backtrace::force_capture().to_string();
+                let content =
+                    Content::content(Level::Warning, msg, parse_bt(bt).unwrap(), settings.datefmt);
                 let mut txt_file = OpenOptions::new()
                     .write(true)
                     .append(true)
@@ -183,8 +180,9 @@ impl<'a> Log<'_> {
             fs::read_to_string(settings_path).expect("Error reading .json settings file.");
         match serde_json::from_str::<Settings>(&settings) {
             Ok(settings) => {
-                let bt = Backtrace::capture().to_string();
-                let content = Content::content(Level::Error, msg, bt, settings.datefmt);
+                let bt = Backtrace::force_capture().to_string();
+                let content =
+                    Content::content(Level::Error, msg, parse_bt(bt).unwrap(), settings.datefmt);
                 let mut txt_file = OpenOptions::new()
                     .write(true)
                     .append(true)
@@ -253,8 +251,9 @@ fn parse_bt(bt: String) -> Option<String> {
     while let Some(line) = lines.next() {
         if line.contains("log.rs") {
             let _blank = lines.next();
-            let origin = lines.next().unwrap().trim();
-            return Some(String::from(origin));
+            let origin: &str = lines.next().unwrap().trim();
+            let polished_origin = String::from(origin).split_off(4);
+            return Some(String::from(polished_origin));
         }
     }
     None
