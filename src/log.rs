@@ -23,16 +23,10 @@ impl<'a> Content<'a> {
         return content;
     }
     fn to_string(&self) -> String {
-        let level = match self.level {
-            Level::Info => String::from("Info"),
-            Level::Debug => String::from("Debug"),
-            Level::Warning => String::from("Warning"),
-            Level::Error => String::from("Error"),
-        };
-        return format!(
-            "Date: {}, level: {}, origin: {}, msg: {} \n",
-            self.date, level, self.origin, self.msg
-        );
+        format!(
+            "Date: {}, Level: {:?}, Origin: {}, Message: {}\n",
+            self.date, self.level, self.origin, self.msg
+        )
     }
     fn print_log(self, settings: &Settings, level: &str, msg: &str) {
         let level_color = match level {
@@ -98,105 +92,46 @@ impl<'a> Log<'_> {
             }
         }
     }
+    fn log(&self, msg: &str, level: Level) {
+        let str_level = level.as_str();
+        let settings_path = Path::new(self.path).join(self.name).join("settings.json");
+        let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
+        let settings =
+            fs::read_to_string(settings_path).expect("Error reading .json settings file.");
+        match serde_json::from_str::<Settings>(&settings) {
+            Ok(settings) => {
+                let bt = Backtrace::force_capture().to_string();
+                let content = Content::content(level, msg, parse_bt(bt).unwrap(), settings.datefmt);
+                let mut txt_file = OpenOptions::new()
+                    .write(true)
+                    .append(true)
+                    .open(&txt_path)
+                    .expect("OpenOptions error.");
+                txt_file
+                    .write_all(Content::to_string(&content).as_bytes())
+                    .expect("Error writing content to .txt file.");
+                if settings.terminal {
+                    Content::print_log(content, &settings, str_level, msg);
+                }
+            }
+            Err(_) => println!("Error opening settings file."),
+        }
+    }
+
     pub fn info(&self, msg: &str) {
-        let settings_path = Path::new(self.path).join(self.name).join("settings.json");
-        let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
-        let settings =
-            fs::read_to_string(settings_path).expect("Error reading .json settings file.");
-        match serde_json::from_str::<Settings>(&settings) {
-            Ok(settings) => {
-                let bt = Backtrace::force_capture().to_string();
-                let content =
-                    Content::content(Level::Info, msg, parse_bt(bt).unwrap(), settings.datefmt);
-                let mut txt_file = OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .open(&txt_path)
-                    .expect("OpenOptions error.");
-                txt_file
-                    .write_all(Content::to_string(&content).as_bytes())
-                    .expect("Error writing content to .txt file.");
-                if settings.terminal {
-                    Content::print_log(content, &settings, "INFO", msg);
-                }
-            }
-            Err(_) => println!("Error opening settings file."),
-        }
+        self.log(msg, Level::Info);
     }
+
     pub fn debug(&self, msg: &str) {
-        let settings_path = Path::new(self.path).join(self.name).join("settings.json");
-        let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
-        let settings =
-            fs::read_to_string(settings_path).expect("Error reading .json settings file.");
-        match serde_json::from_str::<Settings>(&settings) {
-            Ok(settings) => {
-                let bt = Backtrace::force_capture().to_string();
-                let content =
-                    Content::content(Level::Debug, msg, parse_bt(bt).unwrap(), settings.datefmt);
-                let mut txt_file = OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .open(&txt_path)
-                    .expect("OpenOptions error.");
-                txt_file
-                    .write_all(Content::to_string(&content).as_bytes())
-                    .expect("Error writing content to .txt file.");
-                if settings.terminal {
-                    Content::print_log(content, &settings, "DEBUG", msg);
-                }
-            }
-            Err(_) => println!("Error opening settings file."),
-        }
+        self.log(msg, Level::Debug);
     }
+
     pub fn warning(&self, msg: &str) {
-        let settings_path = Path::new(self.path).join(self.name).join("settings.json");
-        let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
-        let settings =
-            fs::read_to_string(settings_path).expect("Error reading .json settings file.");
-        match serde_json::from_str::<Settings>(&settings) {
-            Ok(settings) => {
-                let bt = Backtrace::force_capture().to_string();
-                let content =
-                    Content::content(Level::Warning, msg, parse_bt(bt).unwrap(), settings.datefmt);
-                let mut txt_file = OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .open(&txt_path)
-                    .expect("OpenOptions error.");
-                txt_file
-                    .write_all(Content::to_string(&content).as_bytes())
-                    .expect("Error writing content to .txt file.");
-                if settings.terminal {
-                    Content::print_log(content, &settings, "WARNING", msg);
-                }
-            }
-            Err(_) => println!("Error opening settings file."),
-        }
+        self.log(msg, Level::Warning);
     }
+
     pub fn error(&self, msg: &str) {
-        let settings_path = Path::new(self.path).join(self.name).join("settings.json");
-        let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
-        let settings =
-            fs::read_to_string(settings_path).expect("Error reading .json settings file.");
-        match serde_json::from_str::<Settings>(&settings) {
-            Ok(settings) => {
-                let bt = Backtrace::force_capture().to_string();
-                let content =
-                    Content::content(Level::Error, msg, parse_bt(bt).unwrap(), settings.datefmt);
-                let mut txt_file = OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .open(&txt_path)
-                    .expect("OpenOptions error.");
-                txt_file
-                    .write_all(Content::to_string(&content).as_bytes())
-                    .expect("Error writing content to .txt file.");
-                if settings.terminal {
-                    Content::print_log(content, &settings, "ERROR", msg);
-                }
-            }
-            Err(_) => println!("Error opening settings file."),
-        }
+        self.log(msg, Level::Error);
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -225,6 +160,16 @@ pub enum Level {
     Debug,
     Warning,
     Error,
+}
+impl Level {
+    fn as_str(&self) -> &'static str {
+        return match self {
+            Level::Info => "INFO",
+            Level::Debug => "DEBUG",
+            Level::Warning => "WARNING",
+            Level::Error => "ERROR",
+        };
+    }
 }
 #[derive(Deserialize, Serialize, Debug)]
 pub enum Error {
