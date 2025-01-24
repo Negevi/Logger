@@ -96,17 +96,22 @@ impl<'a> Log<'_> {
         let str_level = level.as_str();
         let settings_path = Path::new(self.path).join(self.name).join("settings.json");
         let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
-        let settings =
-            fs::read_to_string(settings_path).expect("Error reading .json settings file.");
-        match serde_json::from_str::<Settings>(&settings) {
+        match serde_json::from_str::<Settings>(
+            &fs::read_to_string(settings_path).unwrap_or_default(),
+        ) {
             Ok(settings) => {
                 let bt = Backtrace::force_capture().to_string();
-                let content = Content::content(level, msg, parse_bt(bt).unwrap(), settings.datefmt);
+                let content = Content::content(
+                    level,
+                    msg,
+                    parse_bt(bt).unwrap_or_default(),
+                    settings.datefmt,
+                );
                 let mut txt_file = OpenOptions::new()
                     .write(true)
                     .append(true)
                     .open(&txt_path)
-                    .expect("OpenOptions error.");
+                    .expect("Error opening the file's OpenOptions");
                 txt_file
                     .write_all(Content::to_string(&content).as_bytes())
                     .expect("Error writing content to .txt file.");
@@ -176,6 +181,7 @@ pub enum Error {
     InvalidType,
     InvalidLog,
     InvalidOrigin,
+    InvalidFile,
 }
 fn create_files(path: PathBuf, name: &str) {
     let settings = Settings::settings(path, name);
