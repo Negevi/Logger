@@ -15,13 +15,14 @@ Show diferent color options on an .expect() [X]
 Variable path [X]
 Finish origin [X]
 Better error handling [X]
+Better lifetime handling [X]
 
 Fmt do Log em si []? <- how?>
-
-Better lifetime handling []
 
 Optional .json config, setup directly on main [] 
 Example: setup().color(true).terminal(true)...
 Get Logger for logs that do not use the .json configs []
+
 Global log []
+
 Transform into crate []

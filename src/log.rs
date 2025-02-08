@@ -14,7 +14,7 @@ struct Content<'a> {
 }
 impl<'a> Content<'a> {
     fn content(level: Level, msg: &'a str, origin: String, fmt: &str) -> Content<'a> {
-        let content = Content {
+        let content: Content<'a> = Content {
             date: local_date_string(fmt),
             level: level,
             origin: origin,
@@ -66,62 +66,107 @@ impl<'a> Content<'a> {
 pub struct Log<'a> {
     name: &'a str,
     path: &'a str,
+    settings: Option<Settings<'a>>, //opption settings, caso tenha ou nao o .json
     content: Option<Content<'a>>, // content mutavel, Option caso o log não tenha nada para logar. Achei meio esquisito, mas foi a solução q achei
 }
-impl<'a> Log<'_> {
-    pub fn setup(name: &'a str, path: &'a str) -> Log<'a> {
-        let pathbuf = Path::new(path).join(name);
-        match fs::create_dir(&pathbuf) {
-            Ok(_) => {
-                create_files(pathbuf, name); // creates .txt, .json and folder for each logger (clone fn for debug, remove later)
-                println!("Log files created at {}", path); // Debug
-                let log = Log {
-                    name: name,
-                    path: path,
-                    content: None,
-                };
-                return log;
-            }
-            Err(_) => {
-                let log = Log {
-                    name: name,
-                    path: path,
-                    content: None,
-                };
-                return log;
-            }
-        }
+impl<'a> Log<'a> {
+    fn new(name: &'a str, path: &'a str, settings: Option<Settings<'a>>) -> Self {
+        let log: Log<'_> = Log {
+            name: name,
+            path: path,
+            settings: settings,
+            content: None,
+        };
+        return log;
     }
-    fn log(&self, msg: &str, level: Level) {
-        let str_level = level.as_str();
-        let settings_path = Path::new(self.path).join(self.name).join("settings.json");
-        let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
-        match serde_json::from_str::<Settings>(
-            &fs::read_to_string(settings_path).unwrap_or_default(),
-        ) {
-            Ok(settings) => {
-                let bt = Backtrace::force_capture().to_string();
-                let content = Content::content(
-                    level,
-                    msg,
-                    parse_bt(bt).unwrap_or_default(),
-                    settings.datefmt,
-                );
-                let mut txt_file = OpenOptions::new()
-                    .write(true)
-                    .append(true)
-                    .open(&txt_path)
-                    .expect("Error opening the file's OpenOptions");
-                txt_file
-                    .write_all(Content::to_string(&content).as_bytes())
-                    .expect("Error writing content to .txt file.");
-                if settings.terminal {
-                    Content::print_log(content, &settings, str_level, msg);
+    pub fn setup(name: &'a str, path: &'a str, json: bool) -> Log<'a> {
+        let pathbuf = Path::new(path).join(name);
+        if json {
+            let log = Log::new(name, path, None);
+            match fs::create_dir(&pathbuf) {
+                Ok(_) => {
+                    create_files_json(pathbuf, name);
+                    println!("Log .json and .txt files created at {}", path); // Debug
+                    return log;
+                }
+                Err(_) => {
+                    println!("Log initialized at {}", path); // Debug
+                    return log;
                 }
             }
-            Err(_) => println!("Error opening settings file."),
+        } else {
+            match fs::create_dir(&pathbuf) {
+                Ok(_) => {
+                    let log = Log::new(name, path, Some(Settings::new(name, pathbuf.clone(), json)));
+                    create_files(&pathbuf);
+                    println!("Log initialized at {} without .json config file", path); // Debug
+                    return log;
+                }
+                Err(_) => {
+                    let log = Log::new(name, path, Some(Settings::new(name, pathbuf.clone(), json)));
+                    println!("Log initialized at {} without .json config file", path); // Debug
+                    return log;
+                }
+            }
         }
     }
+    fn log(&self, msg: &'a str, level: Level) {
+        let str_level = level.as_str();
+        let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
+        
+        if self.settings.is_none() { // with .json settings
+            let settings_path = Path::new(self.path).join(self.name).join("settings.json");
+            match serde_json::from_str::<Settings>(
+                &fs::read_to_string(settings_path).unwrap_or_default(),
+            ) {
+                Ok(settings) => {
+                    let bt = Backtrace::force_capture().to_string();
+                    let content: Content<'a> = Content::content(
+                        level,
+                        msg,
+                        parse_bt(bt).unwrap_or_default(),
+                        settings.datefmt,
+                    );
+                    let mut txt_file = OpenOptions::new()
+                        .write(true)
+                        .append(true)
+                        .open(&txt_path)
+                        .expect("Error opening the file's OpenOptions");
+                    txt_file
+                        .write_all(Content::to_string(&content).as_bytes())
+                        .expect("Error writing content to .txt file.");
+                    if settings.terminal {
+                        Content::print_log(content, &settings, str_level, msg);
+                    }
+                }
+                Err(_) => println!("Error opening settings file."),
+            }
+        } else {  //without .json settings 
+            match &self.settings  {
+                Some(settings) => {
+                    let bt = Backtrace::force_capture().to_string();
+                    let content: Content<'a> = Content::content(
+                        level,
+                        msg,
+                        parse_bt(bt).unwrap_or_default(),
+                        settings.datefmt,
+                    );
+                    let mut txt_file = OpenOptions::new()
+                        .write(true)
+                        .append(true)
+                        .open(&txt_path)
+                        .expect("Error opening the file's OpenOptions. Please check to your path fmt (.../example/example/) ");
+                    txt_file
+                        .write_all(Content::to_string(&content).as_bytes())
+                        .expect("Error writing content to .txt file.");
+                    if settings.terminal {
+                        Content::print_log(content, &settings, str_level, msg);
+                    }
+                }
+                None => println!("Fetching Settings variable"),
+                }
+            }
+        }
 
     pub fn info(&self, msg: &str) {
         self.log(msg, Level::Info);
@@ -139,20 +184,23 @@ impl<'a> Log<'_> {
         self.log(msg, Level::Error);
     }
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Settings<'a> {
     name: String,
     path: PathBuf,
     terminal: bool,
+    json: bool,
     color: Option<&'a str>,
     datefmt: &'a str,
 }
 impl<'a> Settings<'a> {
-    pub fn settings(path: PathBuf, name: &str) -> Settings {
-        let config = Settings {
+    pub fn new(name: & str, path: PathBuf, json: bool) -> Settings<'a> {
+        let config: Settings<'_> = Settings {
             name: String::from(name),
             path: path,
             terminal: true,
+            json: json,
             color: None,
             datefmt: "%d-%m-%Y %H:%M:%S",
         };
@@ -176,21 +224,18 @@ impl Level {
         };
     }
 }
-#[derive(Deserialize, Serialize, Debug)]
-pub enum Error {
-    InvalidType,
-    InvalidLog,
-    InvalidOrigin,
-    InvalidFile,
-}
-fn create_files(path: PathBuf, name: &str) {
-    let settings = Settings::settings(path, name);
+fn create_files_json(path: PathBuf, name: &str) {
+    let settings = Settings::new(name, path, true);
     let json_string = serde_json::to_string_pretty(&settings).unwrap();
     let json_path = Path::new(&settings.path).join("settings.json");
     let mut file = File::create(json_path).expect("Error creating .json file");
     file.write_all(json_string.as_bytes())
         .expect("Error writing string to json.");
     let txt_path = Path::new(&settings.path).join("logs.txt");
+    File::create(txt_path).expect("Error creating .txt file");
+}
+fn create_files(path: &PathBuf) {
+    let txt_path = Path::new(path).join("logs.txt");
     File::create(txt_path).expect("Error creating .txt file");
 }
 fn local_date_string(fmt: &str) -> String {
