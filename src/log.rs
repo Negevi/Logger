@@ -22,12 +22,14 @@ impl<'a> Content<'a> {
         };
         return content;
     }
+
     fn to_string(&self) -> String {
         format!(
             "Date: {}, Level: {:?}, Origin: {}, Message: {}\n",
             self.date, self.level, self.origin, self.msg
         )
     }
+
     fn print_log(self, settings: &Settings, level: &str, msg: &str) {
         let level_color = match level {
             "INFO" => "\x1b[36m",
@@ -66,7 +68,7 @@ impl<'a> Content<'a> {
 pub struct Log<'a> {
     name: &'a str,
     path: &'a str,
-    settings: Option<Settings<'a>>, //opption settings, caso tenha ou nao o .json
+    settings: Option<Settings<'a>>, //option settings, caso tenha ou nao o .json
     content: Option<Content<'a>>, // content mutavel, Option caso o log não tenha nada para logar. Achei meio esquisito, mas foi a solução q achei
 }
 impl<'a> Log<'a> {
@@ -79,6 +81,7 @@ impl<'a> Log<'a> {
         };
         return log;
     }
+
     pub fn setup(name: &'a str, path: &'a str, json: bool) -> Log<'a> {
         let pathbuf = Path::new(path).join(name);
         if json {
@@ -97,19 +100,20 @@ impl<'a> Log<'a> {
         } else {
             match fs::create_dir(&pathbuf) {
                 Ok(_) => {
-                    let log = Log::new(name, path, Some(Settings::new(name, pathbuf.clone(), json)));
+                    let log = Log::new(name, path, Some(Settings::new(name, pathbuf.clone(), json, true, None, "%d-%m-%Y %H:%M:%S")));
                     create_files(&pathbuf);
                     println!("Log initialized at {} without .json config file", path); // Debug
                     return log;
                 }
                 Err(_) => {
-                    let log = Log::new(name, path, Some(Settings::new(name, pathbuf.clone(), json)));
+                    let log = Log::new(name, path, Some(Settings::new(name, pathbuf.clone(), json, true, None, "%d-%m-%Y %H:%M:%S")));
                     println!("Log initialized at {} without .json config file", path); // Debug
                     return log;
                 }
             }
         }
     }
+
     fn log(&self, msg: &'a str, level: Level) {
         let str_level = level.as_str();
         let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
@@ -183,9 +187,47 @@ impl<'a> Log<'a> {
     pub fn error(&self, msg: &str) {
         self.log(msg, Level::Error);
     }
+
+    pub fn terminal(self, terminal: bool) -> Log<'a> {
+        if self.settings.clone().is_some() && self.settings.clone().unwrap().terminal != terminal {
+            let new_settings = Settings::new(self.name, PathBuf::from(self.path), false, terminal, self.settings.clone().unwrap().color, self.settings.unwrap().datefmt);
+            let new_log = Log::new(self.name, self.path, Some(new_settings));
+            return new_log;
+        }
+        else {
+            println!("Methods are meant to be used with non .json setting loggers. If you wish to change some configuration, please refer to the .json configuration file. ");
+            return self;
+        }
+    }
+
+    pub fn color(self, color: &'a str) -> Log<'a> {
+        if self.settings.clone().is_some() && self.settings.clone().unwrap().color != Some(color) {
+            let new_settings = Settings::new(self.name, PathBuf::from(self.path), false, self.settings.clone().unwrap().terminal, Some(color), self.settings.unwrap().datefmt);
+            let new_log = Log::new(self.name, self.path, Some(new_settings));
+            return new_log;
+        }
+        else {
+            println!("Methods are meant to be used with non .json setting loggers. If you wish to change some configuration, please refer to the .json configuration file. ");
+            return self;
+        }
+    }
+
+    pub fn datefmt(self, datefmt: &'a str) -> Log<'a> {
+        if self.settings.clone().is_some() && self.settings.clone().unwrap().datefmt != datefmt {
+            let new_settings = Settings::new(self.name, PathBuf::from(self.path), false, self.settings.clone().unwrap().terminal, self.settings.unwrap().color, datefmt);
+            let new_log = Log::new(self.name, self.path, Some(new_settings));
+            return new_log;
+        }
+        else {
+            println!("Methods are meant to be used with non .json setting loggers. If you wish to change some configuration, please refer to the .json configuration file. ");
+            return self;
+        }
+    }
+
+    
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Settings<'a> {
     name: String,
     path: PathBuf,
@@ -195,14 +237,14 @@ pub struct Settings<'a> {
     datefmt: &'a str,
 }
 impl<'a> Settings<'a> {
-    pub fn new(name: & str, path: PathBuf, json: bool) -> Settings<'a> {
+    fn new(name: & str, path: PathBuf, json: bool, terminal: bool, color: Option<&'a str>, datefmt: &'a str) -> Settings<'a> {
         let config: Settings<'_> = Settings {
             name: String::from(name),
             path: path,
-            terminal: true,
+            terminal: terminal,
             json: json,
-            color: None,
-            datefmt: "%d-%m-%Y %H:%M:%S",
+            color: color,
+            datefmt: datefmt,
         };
         return config;
     }
@@ -225,7 +267,7 @@ impl Level {
     }
 }
 fn create_files_json(path: PathBuf, name: &str) {
-    let settings = Settings::new(name, path, true);
+    let settings = Settings::new(name, path, true, true, None, "%d-%m-%Y %H:%M:%S");
     let json_string = serde_json::to_string_pretty(&settings).unwrap();
     let json_path = Path::new(&settings.path).join("settings.json");
     let mut file = File::create(json_path).expect("Error creating .json file");
@@ -254,4 +296,3 @@ fn parse_bt(bt: String) -> Option<String> {
     }
     None
 }
-// No error handling, dont know if it even works ;...(

@@ -16,11 +16,12 @@ Variable path [X]
 Finish origin [X]
 Better error handling [X]
 Better lifetime handling [X]
+Optional .json config, setup directly on main [X] 
+Optional .json config, setup directly on main [X] 
+Example: setup().color(true).terminal(true)...
 
 Fmt do Log em si []? <- how?>
 
-Optional .json config, setup directly on main [] 
-Example: setup().color(true).terminal(true)...
 Get Logger for logs that do not use the .json configs []
 
 Global log []
