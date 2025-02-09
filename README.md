@@ -19,10 +19,9 @@ Better lifetime handling [X]
 Optional .json config, setup directly on main [X] 
 Optional .json config, setup directly on main [X] 
 Example: setup().color(true).terminal(true)...
+Get Logger for logs that do not use the .json configs [X]
 
 Fmt do Log em si []? <- how?>
-
-Get Logger for logs that do not use the .json configs []
 
 Global log []
 

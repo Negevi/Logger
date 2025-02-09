@@ -143,7 +143,7 @@ impl<'a> Log<'a> {
                         Content::print_log(content, &settings, str_level, msg);
                     }
                 }
-                Err(_) => println!("Error opening settings file."),
+                Err(_) => println!("Error opening settings file. Make sure to not use equal logger names"),
             }
         } else {  //without .json settings 
             match &self.settings  {
