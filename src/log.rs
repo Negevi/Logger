@@ -93,7 +93,6 @@ impl<'a> Log<'a> {
                     return log;
                 }
                 Err(_) => {
-                    println!("Create dir all err!");
                     let log = Log::new(name, path, None);
                     return log;
                 }
@@ -139,7 +138,7 @@ impl<'a> Log<'a> {
                         Content::print_log(content, &settings, msg);
                     }
                 }
-                Err(_) => println!("Error opening settings file. Make sure to not use equal logger names"),
+                Err(_) => println!("Error opening settings file. Make sure to not use equal logger names and to have a valid path"),
             }
         } else {  //without .json settings 
             match &self.settings  {

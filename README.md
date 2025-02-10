@@ -18,7 +18,8 @@ Variable path [X]
 Finish origin [X]
 Optional .json config, setup directly on main [X] 
 Global log [X]
-Better lifetime handling [X]
+Better lifetime handling [X] <- Gotta check this one>
 
 Better error handling, especially in the create file area [] <- partially done>
+Fix weird json bool in .json file []
 Transform into crate []
