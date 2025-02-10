@@ -55,14 +55,13 @@ impl<'a> Content<'a> {
                     }
                 }
                 print!(
-                    "{color} {}: [{}] {} {level_color} [ {} ] \x1b[0m {color} {} \x1b[0m \n",
+                    "{color}{}: [{}] {} {level_color} [ {} ] \x1b[0m {color} {} \x1b[0m \n",
                     settings.name, self.date, self.origin, self.level.as_str(), msg
                 );
             }
         }
     }
-    fn quick_log_content(level: Level, msg: &'a str) {
-        let bt = Backtrace::force_capture().to_string();
+    fn quick_log_content(level: Level, msg: &'a str, bt: String) {
         let content = Content::new(level, msg, parse_bt(bt).unwrap_or_default(), "%d-%m-%Y %H:%M:%S");
         Content::print_log(content, &Settings::quick_settings(), msg)
     }
@@ -84,19 +83,18 @@ impl<'a> Log<'a> {
         };
         return log;
     }
-
     pub fn setup(name: &'a str, path: &'a str, json: bool) -> Log<'a> {
         let pathbuf = Path::new(path).join(name);
         if json {
-            let log = Log::new(name, path, None);
             match fs::create_dir(&pathbuf) {
                 Ok(_) => {
+                    let log = Log::new(name, path, None);
                     create_files_json(pathbuf, name);
-                    println!("Log .json and .txt files created at {}", path); // Debug
                     return log;
                 }
                 Err(_) => {
-                    println!("Log initialized at {}", path); // Debug
+                    println!("Create dir all err!");
+                    let log = Log::new(name, path, None);
                     return log;
                 }
             }
@@ -105,19 +103,17 @@ impl<'a> Log<'a> {
                 Ok(_) => {
                     let log = Log::new(name, path, Some(Settings::new(name, pathbuf.clone(), json, true, None, "%d-%m-%Y %H:%M:%S")));
                     create_files(&pathbuf);
-                    println!("Log initialized at {} without .json config file", path); // Debug
                     return log;
                 }
                 Err(_) => {
                     let log = Log::new(name, path, Some(Settings::new(name, pathbuf.clone(), json, true, None, "%d-%m-%Y %H:%M:%S")));
-                    println!("Log initialized at {} without .json config file", path); // Debug
                     return log;
                 }
             }
         }
     }
 
-    fn log(&self, msg: &'a str, level: Level) {
+    fn log(&self, msg: &'a str, level: Level, origin: String) {
         let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
         if self.settings.is_none() { // with .json settings
             let settings_path = Path::new(self.path).join(self.name).join("settings.json");
@@ -125,11 +121,10 @@ impl<'a> Log<'a> {
                 &fs::read_to_string(settings_path).unwrap_or_default(),
             ) {
                 Ok(settings) => {
-                    let bt = Backtrace::force_capture().to_string();
                     let content: Content<'a> = Content::new(
                         level,
                         msg,
-                        parse_bt(bt).unwrap_or_default(),
+                        parse_bt(origin).unwrap_or_default(),
                         settings.datefmt,
                     );
                     let mut txt_file = OpenOptions::new()
@@ -149,11 +144,10 @@ impl<'a> Log<'a> {
         } else {  //without .json settings 
             match &self.settings  {
                 Some(settings) => {
-                    let bt = Backtrace::force_capture().to_string();
                     let content: Content<'a> = Content::new(
                         level,
                         msg,
-                        parse_bt(bt).unwrap_or_default(),
+                        parse_bt(origin).unwrap_or_default(),
                         settings.datefmt,
                     );
                     let mut txt_file = OpenOptions::new()
@@ -174,19 +168,23 @@ impl<'a> Log<'a> {
         }
 
     pub fn info(&self, msg: &str) {
-        self.log(msg, Level::Info);
+        let bt = Backtrace::force_capture().to_string();
+        self.log(msg, Level::Info, bt);
     }
 
     pub fn debug(&self, msg: &str) {
-        self.log(msg, Level::Debug);
+        let bt = Backtrace::force_capture().to_string();
+        self.log(msg, Level::Debug, bt);
     }
 
     pub fn warning(&self, msg: &str) {
-        self.log(msg, Level::Warning);
+        let bt = Backtrace::force_capture().to_string();
+        self.log(msg, Level::Warning, bt);
     }
 
     pub fn error(&self, msg: &str) {
-        self.log(msg, Level::Error);
+        let bt = Backtrace::force_capture().to_string();
+        self.log(msg, Level::Error, bt);
     }
 
     pub fn terminal(self, terminal: bool) -> Log<'a> {
@@ -300,5 +298,6 @@ fn parse_bt(bt: String) -> Option<String> {
     None
 }
 pub fn quick_log(level: Level, msg: &str) {
-    Content::quick_log_content(level, msg);
+    let bt = Backtrace::force_capture().to_string();
+    Content::quick_log_content(level, msg, bt);
 }
