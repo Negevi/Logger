@@ -6,14 +6,14 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 #[derive(Serialize, Deserialize, Debug)]
-struct Content<'a> {
+struct Content<'a> { // the quick_log() fn uses the Content struct as the logger
     date: String,
     origin: String,
     level: Level,
     msg: &'a str,
 }
 impl<'a> Content<'a> {
-    fn content(level: Level, msg: &'a str, origin: String, fmt: &str) -> Content<'a> {
+    fn new(level: Level, msg: &'a str, origin: String, fmt: &str) -> Content<'a> {
         let content: Content<'a> = Content {
             date: local_date_string(fmt),
             level: level,
@@ -22,16 +22,14 @@ impl<'a> Content<'a> {
         };
         return content;
     }
-
     fn to_string(&self) -> String {
         format!(
             "Date: {}, Level: {:?}, Origin: {}, Message: {}\n",
             self.date, self.level, self.origin, self.msg
         )
     }
-
-    fn print_log(self, settings: &Settings, level: &str, msg: &str) {
-        let level_color = match level {
+    fn print_log(self, settings: &Settings, msg: &str) {
+        let level_color = match self.level.as_str() {
             "INFO" => "\x1b[36m",
             "DEBUG" => "\x1b[32m",
             "WARNING" => "\x1b[33m",
@@ -41,7 +39,7 @@ impl<'a> Content<'a> {
         match settings.color {
             None => print!(
                 "{}: [{}]  {} {level_color} [ {} ] \x1b[0m {}\n",
-                settings.name, self.date, self.origin, level, msg
+                settings.name, self.date, self.origin, self.level.as_str(), msg
             ),
             Some(mut color) => {
                 match color {
@@ -58,10 +56,15 @@ impl<'a> Content<'a> {
                 }
                 print!(
                     "{color} {}: [{}] {} {level_color} [ {} ] \x1b[0m {color} {} \x1b[0m \n",
-                    settings.name, self.date, self.origin, level, msg
+                    settings.name, self.date, self.origin, self.level.as_str(), msg
                 );
             }
         }
+    }
+    fn quick_log_content(level: Level, msg: &'a str) {
+        let bt = Backtrace::force_capture().to_string();
+        let content = Content::new(level, msg, parse_bt(bt).unwrap_or_default(), "%d-%m-%Y %H:%M:%S");
+        Content::print_log(content, &Settings::quick_settings(), msg)
     }
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -115,9 +118,7 @@ impl<'a> Log<'a> {
     }
 
     fn log(&self, msg: &'a str, level: Level) {
-        let str_level = level.as_str();
         let txt_path = Path::new(self.path).join(self.name).join("logs.txt");
-        
         if self.settings.is_none() { // with .json settings
             let settings_path = Path::new(self.path).join(self.name).join("settings.json");
             match serde_json::from_str::<Settings>(
@@ -125,7 +126,7 @@ impl<'a> Log<'a> {
             ) {
                 Ok(settings) => {
                     let bt = Backtrace::force_capture().to_string();
-                    let content: Content<'a> = Content::content(
+                    let content: Content<'a> = Content::new(
                         level,
                         msg,
                         parse_bt(bt).unwrap_or_default(),
@@ -140,7 +141,7 @@ impl<'a> Log<'a> {
                         .write_all(Content::to_string(&content).as_bytes())
                         .expect("Error writing content to .txt file.");
                     if settings.terminal {
-                        Content::print_log(content, &settings, str_level, msg);
+                        Content::print_log(content, &settings, msg);
                     }
                 }
                 Err(_) => println!("Error opening settings file. Make sure to not use equal logger names"),
@@ -149,7 +150,7 @@ impl<'a> Log<'a> {
             match &self.settings  {
                 Some(settings) => {
                     let bt = Backtrace::force_capture().to_string();
-                    let content: Content<'a> = Content::content(
+                    let content: Content<'a> = Content::new(
                         level,
                         msg,
                         parse_bt(bt).unwrap_or_default(),
@@ -164,7 +165,7 @@ impl<'a> Log<'a> {
                         .write_all(Content::to_string(&content).as_bytes())
                         .expect("Error writing content to .txt file.");
                     if settings.terminal {
-                        Content::print_log(content, &settings, str_level, msg);
+                        Content::print_log(content, &settings, msg);
                     }
                 }
                 None => println!("Fetching Settings variable"),
@@ -226,7 +227,6 @@ impl<'a> Log<'a> {
 
     
 }
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Settings<'a> {
     name: String,
@@ -237,7 +237,7 @@ pub struct Settings<'a> {
     datefmt: &'a str,
 }
 impl<'a> Settings<'a> {
-    fn new(name: & str, path: PathBuf, json: bool, terminal: bool, color: Option<&'a str>, datefmt: &'a str) -> Settings<'a> {
+    fn new(name: &str, path: PathBuf, json: bool, terminal: bool, color: Option<&'a str>, datefmt: &'a str) -> Settings<'a> {
         let config: Settings<'_> = Settings {
             name: String::from(name),
             path: path,
@@ -247,6 +247,9 @@ impl<'a> Settings<'a> {
             datefmt: datefmt,
         };
         return config;
+    }
+    fn quick_settings() -> Settings<'a> {
+        return Settings::new("Global Log", PathBuf::from("blank"), false, true, None, "%d-%m-%Y %H:%M:%S");
     }
 }
 #[derive(Deserialize, Serialize, Debug)]
@@ -295,4 +298,7 @@ fn parse_bt(bt: String) -> Option<String> {
         }
     }
     None
+}
+pub fn quick_log(level: Level, msg: &str) {
+    Content::quick_log_content(level, msg);
 }
